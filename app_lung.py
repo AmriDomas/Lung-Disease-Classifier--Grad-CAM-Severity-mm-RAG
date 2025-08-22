@@ -44,13 +44,13 @@ def load_keras_model_from_file(path):
 # ----------------------------
 # Grad-CAM
 # ----------------------------
-def _get_layer_recursive(model, name):
-    # cari layer di top-level dulu
+def _get_layer_recursive(model, name: str):
+    # cari di top-level
     try:
         return model.get_layer(name)
     except Exception:
         pass
-    # cari di submodel (mis. Sequential yang membungkus base_model)
+    # cari di submodel (Sequential/Functional yang membungkus base_model)
     for l in model.layers:
         if hasattr(l, "get_layer"):
             try:
@@ -63,6 +63,7 @@ def make_gradcam_heatmap(img_array, model, pred_index=None, last_conv_name="bloc
     # --- Sanity checks & coercion ---
     if img_array is None:
         raise ValueError("img_array is None. Pastikan x_proc sudah terisi dan dipreproses.")
+
     arr = img_array
     if isinstance(arr, tf.Tensor):
         arr = arr.numpy()
@@ -72,7 +73,6 @@ def make_gradcam_heatmap(img_array, model, pred_index=None, last_conv_name="bloc
     if arr.ndim != 4:
         raise ValueError(f"img_array harus 4D (1,H,W,3), dapat shape={arr.shape}")
 
-    # pastikan input float32
     tf_img = tf.convert_to_tensor(arr, dtype=tf.float32)
 
     # --- Ambil layer konvolusi target ---
@@ -84,38 +84,44 @@ def make_gradcam_heatmap(img_array, model, pred_index=None, last_conv_name="bloc
     grad_model = tf.keras.Model([model.inputs], [target_layer.output, model.output])
 
     with tf.GradientTape() as tape:
-        tape.watch(tf_img)  # jaga-jaga
-        conv_outputs, preds = grad_model(tf_img, training=False)  # (1,Hc,Wc,C), (1,num_classes)
+        conv_outputs, preds = grad_model(tf_img, training=False)   # conv_outputs: (1,Hc,Wc,C)
+        # Pastikan preds adalah tensor (handle multi-output)
+        if isinstance(preds, (list, tuple)):
+            preds = preds[0]
+        preds = tf.convert_to_tensor(preds)
 
         if pred_index is None:
-            # ambil kelas prediksi tertinggi
             pred_index = tf.argmax(preds[0])
-        # loss = logit/prob kelas target
-        loss = preds[:, pred_index]
 
-    # --- Gradien w.r.t feature maps ---
-    grads = tape.gradient(loss, conv_outputs)
+        # Ambil channel kelas target -> loss
+        # preds shape (1, num_classes)
+        class_channel = preds[:, tf.cast(pred_index, tf.int32)]
+
+    # --- Gradien terhadap feature maps ---
+    grads = tape.gradient(class_channel, conv_outputs)
     if grads is None:
         raise ValueError("Gradients are None. Cek nama layer conv & jalur komputasinya.")
 
-    # Global average pooling gradien per channel -> bobot
-    # conv_outputs: (1,Hc,Wc,C); grads sama shape
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))  # (C,)
+    # Rata-rata spasial gradien -> bobot per-channel
+    grads = grads[0]                       # (Hc, Wc, C)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1))  # (C,)
 
-    # Timbang feature map dengan bobot gradien
-    conv_outputs = conv_outputs[0]  # (Hc,Wc,C)
-    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)  # (Hc,Wc)
+    # Hitung peta panas tertimbang
+    conv_outputs = conv_outputs[0]         # (Hc, Wc, C)
+    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)  # (Hc, Wc)
 
     # ReLU & normalisasi
     heatmap = tf.maximum(heatmap, 0)
-    denom = tf.reduce_max(heatmap)
-    heatmap = heatmap / (denom + 1e-8)
+    maxval = tf.reduce_max(heatmap)
+    heatmap = heatmap / (maxval + 1e-8)
 
     # Resize ke ukuran input
     H, W = arr.shape[1], arr.shape[2]
     heatmap = cv2.resize(heatmap.numpy().astype(np.float32), (W, H))
 
-    return heatmap, int(pred_index.numpy()) if hasattr(pred_index, "numpy") else int(pred_index)
+    # Return heatmap + index prediksi teratas (int)
+    top_idx = int(pred_index.numpy()) if hasattr(pred_index, "numpy") else int(pred_index)
+    return heatmap, top_idx
 
 
 def overlay_heatmap_on_image(orig_uint8, heatmap, alpha=0.45):
@@ -445,40 +451,31 @@ with left:
 
                     # Grad-CAM
                     st.subheader("Grad-CAM")
-
                     try:
-                        # Pakai layer fixed "block5_conv4"
                         heatmap, top_idx = make_gradcam_heatmap(
                             x_proc, model_obj, pred_index=None, last_conv_name="block5_conv4"
                         )
                         st.success(f"Grad-CAM successful! Top predicted index={top_idx}")
-
-                        # siapkan base image untuk overlay
-                        if isinstance(x_proc, tf.Tensor):
-                            img_vis = x_proc.numpy()[0]
-                        else:
-                            img_vis = np.asarray(x_proc)[0]
-                        # img_vis biasanya [0..1], ubah ke [0..255]
-                        img_vis_255 = (np.clip(img_vis, 0, 1) * 255).astype(np.uint8)
-
-                        # buat colormap heatmap (JET)
+                    
+                        # base image untuk overlay: gunakan display_orig (RGB 0..255)
+                        base_vis = display_orig.astype(np.uint8)
+                    
                         heatmap_uint8 = np.uint8(255 * heatmap)
-                        heatmap_color = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)  # BGR
-                        heatmap_color = cv2.cvtColor(heatmap_color, cv2.COLOR_BGR2RGB)      # ke RGB
-
-                        # overlay
+                        heatmap_color = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)     # BGR
+                        heatmap_color = cv2.cvtColor(heatmap_color, cv2.COLOR_BGR2RGB)         # -> RGB
+                    
                         alpha = 0.4
-                        overlay = cv2.addWeighted(img_vis_255, 1.0, heatmap_color, alpha, 0)
-
-                        # tampilkan
-                        st.image(img_vis_255, caption="Input", width=200)
-                        st.image(heatmap_color, caption="Heatmap", width=200)
+                        overlay = cv2.addWeighted(base_vis, 1.0, heatmap_color, alpha, 0)
+                    
+                        st.image(base_vis, caption="Input (224x224)", width=200)
+                        st.image(heatmap_color, caption="Grad-CAM Heatmap", width=200)
                         st.image(overlay, caption="Overlay", width=200)
-
+                    
                     except Exception as e:
                         st.error(f"Grad-CAM failure: {e}")
                         heatmap = np.zeros((224,224), dtype=np.float32)
                         overlay = display_orig.copy()
+
 
                     # Simulate delay controls
                     st.write("Simulate delay / worsening:")
@@ -646,3 +643,4 @@ with right:
     st.markdown("---")
 
     st.caption("Built for demo/portfolio. Use responsibly.")
+
