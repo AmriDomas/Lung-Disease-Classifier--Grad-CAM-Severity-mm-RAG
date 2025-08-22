@@ -1,8 +1,19 @@
-streamlit==1.37.1
-tensorflow==2.19.0
-keras==3.3.3
+# Core
+streamlit==1.38.0
 numpy==1.26.4
-pandas==2.2.2
-transformers==4.44.2
-requests==2.32.3
-protobuf==4.25.3
+opencv-python==4.10.0.84
+Pillow==10.4.0
+matplotlib==3.9.2
+python-dotenv==1.0.1
+
+# TensorFlow / Keras
+tensorflow==2.17.0
+
+# HuggingFace & RAG
+sentence-transformers==3.0.1
+faiss-cpu==1.8.0.post1
+huggingface-hub==0.24.6
+
+# DICOM (optional, for medical images)
+pydicom==2.4.4
+
