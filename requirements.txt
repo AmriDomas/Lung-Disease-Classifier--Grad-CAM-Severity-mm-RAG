@@ -13,8 +13,9 @@ tensorflow==2.17.0
 sentence-transformers==2.2.2
 transformers==4.33.3
 torch==2.0.1
-faiss-cpu==1.8.0.post1
-huggingface-hub==0.24.6
+faiss-cpu==1.7.4
+huggingface-hub==0.20.3
+codecarbon==2.3.5
 
 # DICOM (optional, for medical images)
 pydicom==2.4.4
