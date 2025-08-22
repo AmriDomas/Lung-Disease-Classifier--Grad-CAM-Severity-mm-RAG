@@ -58,6 +58,17 @@ What this app does
    - Example: trained classifier with classes [Lung_Opacity, Normal, Viral Pneumonia].
    - You can host your model file on HuggingFace (for storage/backup), but in the app you upload manually via UI.
 
+## 📥 Model & Dataset
+
+🔗 Pretrained model (.h5) on HuggingFace: View / [Download here](https://huggingface.co/11amri/lung_classification/blob/main/lung_model.h5)
+
+📊 Dataset on Kaggle: [Chest X-ray Dataset](https://www.kaggle.com/datasets/fatemehmehrparvar/lung-disease)
+
+The app requires you to upload your trained Keras model (.h5).
+Example: trained classifier with classes [Lung_Opacity, Normal, Viral Pneumonia].
+
+You can host your model file on HuggingFace for backup, but in the app you upload manually via UI.
+
 ## 📂 Repo Structure
 
    ```bash
@@ -81,4 +92,11 @@ What this app does
 This app is for research and educational purposes only.
 It is not a medical diagnostic tool. Always consult clinicians and verified diagnostics for patient care.
 
+## 📬 Contact
+
+👤 Author: Amri Domas
+
+🔗 [LinkedIn](http://linkedin.com/in/muh-amri-sidiq)
+
+📧 For collaboration or inquiries, please connect via LinkedIn.
 
