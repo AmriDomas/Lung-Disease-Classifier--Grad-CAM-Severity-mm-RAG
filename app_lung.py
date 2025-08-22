@@ -421,7 +421,7 @@ with left:
                 pixel_spacing = None
 
             # display
-            st.image(img_rgb, caption="Input (resized preview)", use_container_width=True)
+            st.image(img_rgb, caption="Input (resized preview)", width=600)
 
             # prepare input for model
             img_resized = cv2.resize(img_rgb, (224,224))
@@ -471,9 +471,9 @@ with left:
                         overlay = cv2.addWeighted(img_vis_255, 1.0, heatmap_color, alpha, 0)
 
                         # tampilkan
-                        st.image(img_vis_255, caption="Input", use_container_width=True)
-                        st.image(heatmap_color, caption="Heatmap", use_container_width=True)
-                        st.image(overlay, caption="Overlay", use_container_width=True)
+                        st.image(img_vis_255, caption="Input", width=200)
+                        st.image(heatmap_color, caption="Heatmap", width=200)
+                        st.image(overlay, caption="Overlay", width=200)
 
                     except Exception as e:
                         st.error(f"Grad-CAM failure: {e}")
@@ -510,9 +510,9 @@ with left:
 
                     # display images and metrics
                     col_o, col_h, col_s = st.columns(3)
-                    col_o.image(display_orig, caption="Original (224x224)", use_container_width=True)
-                    col_h.image((np.uint8(255*sim_heat)), caption="Simulated Heatmap (0..255)", use_container_width=True)
-                    col_s.image(overlay, caption=f"Overlay (delay={delay_slider:.2f})", use_container_width=True)
+                    col_o.image(display_orig, caption="Original (224x224)", width=224)
+                    col_h.image((np.uint8(255*sim_heat)), caption="Simulated Heatmap (0..255)", width=224)
+                    col_s.image(overlay, caption=f"Overlay (delay={delay_slider:.2f})", width=224)
 
                     st.markdown("**Computed metrics**")
                     st.write(f"- Lesion area (mm²): **{area_mm2:.1f}**")
@@ -644,4 +644,5 @@ with right:
     - Add authentication & logging for production deployment.
     """)
     st.markdown("---")
+
     st.caption("Built for demo/portfolio. Use responsibly.")
