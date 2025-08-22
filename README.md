@@ -52,6 +52,8 @@ What this app does
    streamlit run app_lung.py
    ```
 
+   link [Streamlit](https://lung-disease-classifier--grad-cam-severity-mm-rag-crztpqbevnab.streamlit.app/)
+
 ## 📥 Model
 
    - The app requires you to upload your trained Keras model (.h5).
