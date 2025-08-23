@@ -253,6 +253,12 @@ def build_faiss_index_from_kb(kb_dir="kb/", index_dir="rag_index", max_chunk=800
                 try:
                     from pdfminer.high_level import extract_text
                     txt = extract_text(str(p))
+                    if not txt.strip():
+                        st.warning(f"PDF {p.name} blank or unreadable")
+                        continue
+                except ImportError:
+                    st.error("Module pdfminer.six not installed. Add to requirements.txt")
+                    continue
                 except Exception as e:
                     st.warning(f"pdf read error {p}: {e}")
                     continue
@@ -575,11 +581,21 @@ with left:
                         try:
                             retr = RAGRetriever(index_dir="rag_index", emb_model=EMB_MODEL, k=3)
                             query = f"{class_names[pred_idx]} chest imaging findings severity management"
-                            retrieved = retr.retrieve(query)
-                            st.markdown("Top retrieved context:")
-                            for i, d in enumerate(retrieved, 1):
-                                with st.expander(f"[{i}] {os.path.basename(d['source'])} (score={d['score']:.3f})"):
-                                    st.write(d['text'][:1500])
+
+                            # Retrieve documents
+                            try:
+                                retrieved = retr.retrieve(query)
+                            except Exception as e:
+                                st.error(f"RAG retrieval failed: {e}")
+                                retrieved = []
+                            else:
+                                if not retrieved:
+                                    st.info("Build FAISS index first and ensure kb/ has valid PDF/TXT files")
+                            if retrieved:
+                                st.markdown("Top retrieved context:")
+                                for i, d in enumerate(retrieved, 1):
+                                    with st.expander(f"[{i}] {os.path.basename(d['source'])} (score={d['score']:.3f})"):
+                                        st.write(d['text'][:1500])
                             
                             prompt = build_rag_prompt_with_severity(class_names[pred_idx], pred_prob, area_mm2, pct_lung, current_sev['category'], simulated_area, simulated_sev['category'], retrieved)
                             st.markdown("LLM Prompt (for traceability):")
@@ -643,4 +659,5 @@ with right:
     st.markdown("---")
 
     st.caption("Built for demo/portfolio. Use responsibly.")
+
 
