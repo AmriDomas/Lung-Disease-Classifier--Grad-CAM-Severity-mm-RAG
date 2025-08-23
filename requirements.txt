@@ -20,3 +20,4 @@ codecarbon==2.3.5
 # DICOM (optional, for medical images)
 pydicom==2.4.4
 
+pdfminer.six==20221105
